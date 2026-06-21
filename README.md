@@ -11,7 +11,7 @@ Take a snapshot. Keep working. Compare later. See exactly what was added, remove
 ## Install
 
 ```bash
-git clone https://github.com/<your-username>/snapdiff.git
+git clone https://github.com/ohmfaruk/snapdiff.git
 cd snapdiff
 pip install -e .
 ```
