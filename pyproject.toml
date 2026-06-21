@@ -3,7 +3,10 @@ name = "snapdiff"
 version = "0.1.0"
 description = "Snapshot and diff any directory tree over time."
 requires-python = ">=3.8"
-authors = [{ name = "Your Name" }]
+authors = [{ name = "OhmFaruk" }]
+
+[project.optional-dependencies]
+dev = ["pytest"]
 
 [project.scripts]
 snapdiff = "snapdiff.cli:main"
