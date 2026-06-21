@@ -1,5 +1,7 @@
 # snapdiff
 
+[![Tests](https://github.com/ohmfaruk/snapdiff/actions/workflows/tests.yml/badge.svg)](https://github.com/ohmfaruk/snapdiff/actions/workflows/tests.yml)
+
 Snapshot and diff any directory tree over time — no git repo required.
 
 `snapdiff` solves a simple problem: git only tracks changes *inside* a repo, but you constantly need to know "what changed in this folder since last week" for things that aren't (and shouldn't be) version controlled — config directories, Dropbox syncs, build output, scraped datasets, client deliverables, downloads folders.
