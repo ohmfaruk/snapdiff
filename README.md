@@ -42,6 +42,18 @@ Comparing '~/Documents/configs' against snapshot 'before-cleanup' (taken 2026-06
 Summary: 1 added, 1 removed, 1 modified.
 ```
 
+**Renamed files are detected automatically** — if a file's content hash matches an old hash under a different path, it's reported as a rename, not a separate add+delete:
+
+```
+> renamed   old_name.txt -> new_name.txt
+```
+
+**Export the diff as Markdown** — handy for pasting into a PR description, daily log, or sharing with a team:
+
+```bash
+snapdiff compare ~/Documents/configs before-cleanup --markdown report.md
+```
+
 **List all saved snapshots:**
 
 ```bash

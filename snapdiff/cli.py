@@ -82,6 +82,43 @@ def cmd_snap(args):
     print(f"Snapshot '{args.name}' saved — {len(tree)} files tracked.")
     print(f"  -> {out_path}")
 
+def write_markdown_report(output_path, root, snapshot_name, created_at,
+                           added, removed, renamed, modified):
+    """Write the diff result as a clean Markdown report — handy for pasting
+    into a PR description, daily log, or sharing with a team."""
+    lines = [
+        f"# Diff Report: `{root}`",
+        "",
+        f"**Snapshot:** `{snapshot_name}` (taken {created_at})",
+        f"**Generated:** {datetime.now().isoformat()}",
+        "",
+    ]
+
+    if not (added or removed or renamed or modified):
+        lines.append("No changes detected.")
+    else:
+        if added:
+            lines.append(f"## Added ({len(added)})")
+            lines.extend(f"- `{path}`" for path in added)
+            lines.append("")
+        if removed:
+            lines.append(f"## Removed ({len(removed)})")
+            lines.extend(f"- `{path}`" for path in removed)
+            lines.append("")
+        if renamed:
+            lines.append(f"## Renamed ({len(renamed)})")
+            lines.extend(f"- `{old}` -> `{new}`" for old, new in renamed)
+            lines.append("")
+        if modified:
+            lines.append(f"## Modified ({len(modified)})")
+            lines.extend(f"- `{path}`" for path in modified)
+            lines.append("")
+
+        lines.append(f"**Summary:** {len(added)} added, {len(removed)} removed, "
+                      f"{len(renamed)} renamed, {len(modified)} modified.")
+
+    Path(output_path).write_text("\n".join(lines))
+
 
 def cmd_compare(args):
     """Compare current directory state against a saved snapshot."""
@@ -101,18 +138,41 @@ def cmd_compare(args):
     old_paths = set(old.keys())
     new_paths = set(current.keys())
 
-    added = sorted(new_paths - old_paths)
-    removed = sorted(old_paths - new_paths)
+    added = set(new_paths - old_paths)
+    removed = set(old_paths - new_paths)
     common = old_paths & new_paths
     modified = sorted(p for p in common if old[p]["sha256"] != current[p]["sha256"])
 
+    # Rename detection: if a "removed" file's hash matches an "added" file's
+    # hash, it's the same content that moved/was renamed, not a separate
+    # delete + create. Pull matching pairs out of added/removed into renamed.
+    old_hash_to_path = {old[p]["sha256"]: p for p in removed}
+    renamed = []
+    for new_path in list(added):
+        file_hash = current[new_path]["sha256"]
+        if file_hash in old_hash_to_path:
+            old_path = old_hash_to_path[file_hash]
+            renamed.append((old_path, new_path))
+            added.discard(new_path)
+            removed.discard(old_path)
+
+    added = sorted(added)
+    removed = sorted(removed)
+    renamed = sorted(renamed)
+
     # ANSI colors — work in most modern terminals including Windows Terminal/PowerShell 7+
-    GREEN, RED, YELLOW, RESET = "\033[92m", "\033[91m", "\033[93m", "\033[0m"
+    GREEN, RED, YELLOW, BLUE, RESET = "\033[92m", "\033[91m", "\033[93m", "\033[94m", "\033[0m"
+
+    if args.markdown:
+        write_markdown_report(args.markdown, root, args.name, snapshot["created_at"],
+                               added, removed, renamed, modified)
+        print(f"Markdown report written to {args.markdown}")
+        return
 
     print(f"\nComparing '{root}' against snapshot '{args.name}' "
           f"(taken {snapshot['created_at']})\n")
 
-    if not (added or removed or modified):
+    if not (added or removed or modified or renamed):
         print("No changes detected.")
         return
 
@@ -120,10 +180,13 @@ def cmd_compare(args):
         print(f"  {GREEN}+ added     {RESET}{path}")
     for path in removed:
         print(f"  {RED}- removed   {RESET}{path}")
+    for old_path, new_path in renamed:
+        print(f"  {BLUE}> renamed   {RESET}{old_path} -> {new_path}")
     for path in modified:
         print(f"  {YELLOW}~ modified  {RESET}{path}")
 
-    print(f"\nSummary: {len(added)} added, {len(removed)} removed, {len(modified)} modified.")
+    print(f"\nSummary: {len(added)} added, {len(removed)} removed, "
+          f"{len(renamed)} renamed, {len(modified)} modified.")
 
 
 def cmd_list(args):
@@ -159,6 +222,8 @@ def main():
     compare_parser.add_argument("directory", help="Path to the directory to compare")
     compare_parser.add_argument("name", help="Snapshot label to compare against")
     compare_parser.add_argument("--ignore", nargs="*", help="Additional names to ignore")
+    compare_parser.add_argument("--markdown", metavar="OUTPUT_PATH",
+                                 help="Write the diff as a Markdown report to this file path")
     compare_parser.set_defaults(func=cmd_compare)
 
     # list
